@@ -308,3 +308,36 @@ class CalibVLTI(PolFunctions):
         return self.muellerfromParams(Az, El, *fitval,
                                       rev=rev, returnRot=returnRot, 
                                       rotationFree=rotationFree)
+    
+    
+    def kmirrorMueller(ang, Mpath='Models/Mueller_KM_fitted_depo.npy',
+                       dpath='Models/Depol_KM.npy'):
+        """
+        """
+        Mfile = resource_filename('VLTIpol', Mpath)
+        M = np.load(Mfile)
+        R1 = pol.rotationMatMueller(ang/180*np.pi/2)
+        R2 = pol.rotationMatMueller(-ang/180*np.pi/2)
+        mrot = np.dot(np.dot(R1, M), R2)
+        
+        dfile = resource_filename('VLTIpol', dpath)
+        depol = np.load(dfile)
+        return mrot, depol(ang)
+    
+    def gravityMueller(ang, Mpath='Models/Mueller_GR_fitted_depo.npy'):
+        """
+        """
+        Mfile = resource_filename('VLTIpol', Mpath)
+        M = np.load(Mfile)
+        return M
+    
+    def hwpMueller(ang):
+        """
+        """
+        M = np.identity(4)
+        M[2,2] = -1
+        M[3,3] = -1
+        R1 = pol.rotationMatMueller(ang/180*np.pi/2)
+        R2 = pol.rotationMatMueller(-ang/180*np.pi/2)
+        mrot = np.dot(np.dot(R1, M), R2)
+        return mrot
