@@ -19,10 +19,11 @@ class CalibVLTI(PolFunctions):
     M = muellerVLTI(Az, El)
     """
         
-    def __init__(self, plot=False):
+    def __init__(self, plot=False, verbose=False):
         self.mfirst = 3
         self.mlast = 18
         self.plot = plot
+        self.verbose = verbose
         self.setupVLTI()
 
 
@@ -311,7 +312,7 @@ class CalibVLTI(PolFunctions):
     
     
     def muellerKM(self, ang, Mpath='Models/Mueller_KM_fitted_depo.npy',
-                       dpath='Models/Depol_KM.npy', ideal=False):
+                       dpath='Models/Depol_KM.npy', ideal=False, lightpath=True):
         """
         """
         if ideal:
@@ -324,9 +325,12 @@ class CalibVLTI(PolFunctions):
             M = np.load(Mfile)
             dfile = resource_filename('VLTIpol', dpath)
             depol = np.load(dfile, allow_pickle=True)[0]
-            dep = depol(ang%360)
-        R1 = self.rotationMatMueller(ang/180*np.pi/2)
-        R2 = self.rotationMatMueller(-ang/180*np.pi/2)
+            if lightpath:
+                dep = depol((-ang-40)%360)
+            else:
+                dep = depol(ang%360)
+        R1 = self.rotationMatMueller(-ang/180*np.pi/2)
+        R2 = self.rotationMatMueller(ang/180*np.pi/2)
         mrot = np.dot(np.dot(R1, M), R2)
         return mrot, dep
     
@@ -343,7 +347,7 @@ class CalibVLTI(PolFunctions):
         M = np.identity(4)
         M[2,2] = -1
         M[3,3] = -1
-        R1 = self.rotationMatMueller(ang/180*np.pi/2)
-        R2 = self.rotationMatMueller(-ang/180*np.pi/2)
+        R1 = self.rotationMatMueller(-ang/180*np.pi/2)
+        R2 = self.rotationMatMueller(ang/180*np.pi/2)
         mrot = np.dot(np.dot(R1, M), R2)
         return mrot
