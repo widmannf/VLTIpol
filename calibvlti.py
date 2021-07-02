@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 from pkg_resources import resource_filename
 from .polfunctions import *
 
-
-
 degtorad = np.pi/180
 
 class CalibVLTI(PolFunctions):
@@ -153,11 +151,11 @@ class CalibVLTI(PolFunctions):
                                  self.usedmirror[m])
             if self.usedmirror[m] == 8:
                 # Field rotation due to azimuth position
-                telrot = -(Az + 18.984*degtorad)
+                telrot = (Az - 18.984*degtorad)
                 rot += telrot
             elif self.usedmirror[m] == 3:
                 # Field rotation due to elevation
-                telrot = (math.pi/2 - El)
+                telrot = -(math.pi/2 - El)
                 rot += telrot
 
             rot = rot%math.pi
