@@ -30,7 +30,7 @@ class CalibVLTI(PolFunctions):
         Sets up the light path and the s & p vectors of each mirror
         """
         
-        posfile = resource_filename('polsim', 'Models/mirrorPos.txt')
+        posfile = resource_filename('VLTIpol', 'Models/mirrorPos.txt')
         uvw = np.genfromtxt(posfile)
         u = uvw[:,0]
         v = uvw[:,1]
