@@ -1,8 +1,8 @@
 # VLTIpol
 
-Small python package to get the instrumental polarization of the VLTI
+Small python package to get the instrumental polarization of the VLTI. A paper for documentation is in preparation.
 
-Mini example to get the polarization in the UT rest position:
+Mini example to get the polarization for a typical GRAVITY file:
 
 ```python
 import numpy as np
