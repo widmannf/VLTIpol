@@ -3,7 +3,6 @@ import math
 import matplotlib.pyplot as plt
 from pkg_resources import resource_filename
 from .polfunctions import *
-
 degtorad = np.pi/180
 
 
@@ -311,3 +310,87 @@ class CalibVLTI(PolFunctions):
                                         rev=rev, returnRot=returnRot,
                                         rotationFree=rotationFree)
 
+    def mueller_gravity_rot(self, phiK, phiH, M, fiberrot=15.8, rev=False,
+                         norm=True):
+        MK, MHWP, Mrest = M
+        phiK *= degtorad
+        phiH *= degtorad
+        fiberrot *= degtorad
+
+        if rev:
+            MG = np.matmul(self.rotation_mueller(-fiberrot), MG)
+
+            MG = np.matmul(self.rotation_mueller(phiH), Mrest)
+            MG = np.matmul(MHWP, MG)
+            MG = np.matmul(self.rotation_mueller(-phiH), MG)
+
+            MG = np.matmul(self.rotation_mueller(phiK), MG)
+            MG = np.matmul(MK, MG)
+            MG = np.matmul(self.rotation_mueller(-phiK), MG)
+
+            MG = np.matmul(self.rotation_mueller(-math.pi/2), MG)
+
+        else:
+            MG = np.identity(4)
+            MG = np.matmul(self.rotation_mueller(math.pi/2), MG)
+
+            MG = np.matmul(self.rotation_mueller(-phiK), MG)
+            MG = np.matmul(MK, MG)
+            MG = np.matmul(self.rotation_mueller(phiK), MG)
+
+            MG = np.matmul(self.rotation_mueller(-phiH), MG)
+            MG = np.matmul(MHWP, MG)
+            MG = np.matmul(self.rotation_mueller(phiH), MG)
+
+            MG = np.matmul(Mrest, MG)
+            MG = np.matmul(self.rotation_mueller(fiberrot), MG)
+
+        if norm:
+            MG /= MG[0, 0]
+        return MG
+
+    def mueller_GRAVITY(self, kmrot, hwprot, onaxis=False):
+        """
+        Mueller matrix from fitted parameters
+        """
+        MHWP = np.array([[1, 0, 0, 0],
+                         [0, 1, 0, 0],
+                         [0, 0, -1, 0],
+                         [0, 0, 0, -1]])
+        if onaxis:
+            raise ValueError('Ne to recheck the fit!')
+            fitMKM_name = resource_filename('polsim',
+                                            'Models/GRAVITY_fit_MK_Monaxis.txt')
+            fitM_name = resource_filename('polsim',
+                                          'Models/GRAVITY_fit_M_onaxis.txt')
+        else:
+            fitMKM_name = resource_filename('polsim',
+                                            'Models/GRAVITY_fit_MKM.txt')
+            fitM_name = resource_filename('polsim',
+                                          'Models/GRAVITY_fit_M.txt')
+        MKM = np.genfromtxt(fitMKM_name)
+        Mgra = np.genfromtxt(fitM_name)
+
+        M = [MKM, MHWP, Mgra]
+        M = self.mueller_gravity_rot(kmrot, hwprot, M)
+        return M
+
+
+def calib_all(az, el, kmrot, hwprot, pa, returnrot=False,
+              onaxis=False, verbose=False,
+              plot=False, rotationFree=False):
+    vlti = CalibVLTI(plot=plot, verbose=verbose)
+
+    M_vlti = vlti.mueller_VLTI(az, el, rotationFree=rotationFree)
+    M_gra = vlti.mueller_GRAVITY(kmrot, hwprot, onaxis=onaxis)
+    M = np.dot(M_gra, M_vlti)
+    M = M / M[0, 0]
+
+    if returnrot:
+        rotang = pa - 90
+        R = vlti.rotationMatMueller(((-rotang) % 180) / 180*math.pi)
+        return M, R
+    else:
+        return M
+
+    
