@@ -2,14 +2,11 @@ import numpy as np
 import math
 
 
-
 class PolFunctions():
-    
     def __init__(self):
         pass
 
-
-    def mirrorReflection(self, lightIn, lightOut):
+    def mirror_reflection(self, lightIn, lightOut):
         """
         compute the S and P vectors given the rays 
         from previous and to next mirror or reference point
@@ -20,8 +17,7 @@ class PolFunctions():
         plane of incidence is constructed by in and
         outfalling light
         """
-        
-        polSin = np.cross(lightIn,lightOut)
+        polSin = np.cross(lightIn, lightOut)
         if not np.linalg.norm(polSin) == 0.0:
             polSin = polSin / np.linalg.norm(polSin)
         else:
@@ -42,12 +38,9 @@ class PolFunctions():
                 incAngle = math.acos(1) / 2
             elif Cos2i < -1 and Cos2i > (-1-1e-5):
                 Cos2i == -1
-        
         return polSin, polSout, polPin, polPout, normMirror, incAngle
 
-
-
-    def rotationMatMueller(self, theta):
+    def rotation_mueller(self, theta):
         """
         Mueller Matrix for roation
         transforms from "old" components to "new" components
@@ -55,27 +48,24 @@ class PolFunctions():
         """
         if np.abs(theta) > 5*np.pi:
             raise ValueError('Check the angle, seems to be to big')
-        
         RR = np.array([[np.cos(2*theta),  np.sin(2*theta)],
                        [-np.sin(2*theta), np.cos(2*theta)]])
         R = np.identity(4)
-        R[1:-1,1:-1] = RR
+        R[1:-1, 1:-1] = RR
         R[np.where(np.abs(R) < 1e-14)] = 0
         return R
     
-    
-    def Mfromparams(self, X, d):
-        M_new = np.zeros((4,4))
-        X2 = X**2
-        M_new[0,0] = 1 + X2
-        M_new[1,1] = 1 + X2
-        M_new[0,1] = 1 - X2
-        M_new[1,0] = 1 - X2
+    def polmat_reflection(self, e, d):
+        M = np.zeros((4, 4))
+        M[0, 0] = 1
+        M[1, 1] = 1
+        M[0, 1] = e
+        M[1, 0] = e
 
-        M_new[2,2] = 2*X*np.cos(d)
-        M_new[3,3] = 2*X*np.cos(d)
-        M_new[2,3] = 2*X*np.sin(d)
-        M_new[3,2] =-2*X*np.sin(d)
+        M[2, 2] = np.sqrt(1-e**2)*np.cos(d)
+        M[3, 3] = np.sqrt(1-e**2)*np.cos(d)
+        M[2, 3] = np.sqrt(1-e**2)*np.sin(d)
+        M[3, 2] = -np.sqrt(1-e**2)*np.sin(d)
 
-        M_new /= M_new[0,0]
-        return(M_new)
+        M /= M[0, 0]
+        return(M)
