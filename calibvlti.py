@@ -13,15 +13,16 @@ class CalibVLTI(PolFunctions):
 
     plot: show the light path [False]
 
-    Only important function is:
-    M = muellerVLTI(Az, El)
+    The mueller matrix of the VLTI can be created with:
+    M = mueller_VLTI(Az, El)
+    And the one of GRAVITY with:
+    M = mueller_GRAVITY(kmrot, hwprot)
     """
 
-    def __init__(self, plot=False, verbose=False):
+    def __init__(self, plot=False):
         self.mfirst = 3
         self.mlast = 18
         self.plot = plot
-        self.verbose = verbose
         self.setup_VLTI()
 
     def setup_VLTI(self):
@@ -118,7 +119,6 @@ class CalibVLTI(PolFunctions):
         Helper function for fitting
         Computes the rotations between the groups of mirrors
         for normal light path (starlight)
-        Only works for full train
         """
         Az *= degtorad
         El *= degtorad
@@ -153,11 +153,11 @@ class CalibVLTI(PolFunctions):
                                  self.usedmirror[m])
             if self.usedmirror[m] == 8:
                 # Field rotation due to azimuth position
-                telrot = (Az - 18.984*degtorad)
+                telrot = -(Az + 18.984*degtorad)
                 rot += telrot
             elif self.usedmirror[m] == 3:
                 # Field rotation due to elevation
-                telrot = -(math.pi/2 - El)
+                telrot = (math.pi/2 - El)
                 rot += telrot
 
             rot = rot % math.pi
@@ -179,7 +179,6 @@ class CalibVLTI(PolFunctions):
         Helper function for fitting
         Computes the rotations between the groups of mirrors
         for reverse light path (metrology)
-        Only works for full train
         """
         Az *= degtorad
         El *= degtorad
@@ -237,11 +236,13 @@ class CalibVLTI(PolFunctions):
             return rot_Mgroup
 
     def _grouped_polmat(self, par):
-        print(par)
+        """
+        Computes the mueller matrix for each mirror group in the VLTIpol
+        par: diattenuation and phaseshift of each group
+        """
         if len(par) != 8:
             raise ValueError('For Mueller matrix parameter has to '
-                             'contain 8 values: (e & d) x 4. If '
-                             'rs, rp, and d are given use full=True')
+                             'contain 8 values: (e & d) x 4.')
         (e1, d1, e2, d2, e3, d3, e4, d4) = par
         M3 = self.polmat_reflection(e1, d1)
         M4to8 = self.polmat_reflection(e2, d2)
@@ -250,7 +251,7 @@ class CalibVLTI(PolFunctions):
         return M3, M4to8, M9, M10to18
 
     def mueller_from_params(self, Az, El, par, rev=False, norm=True,
-                            returnRot=False, rotationFree=False):
+                            returnRot=False):
         """
         Computes the mueller matrix from the grouped approach
         with the parameters of the froups given as arguments
@@ -278,18 +279,13 @@ class CalibVLTI(PolFunctions):
         if norm:
             M /= M[0, 0]
 
-        if rotationFree:
-            if self.verbose:
-                print('Rotation back by %.2f deg' % (-rot_tot))
-            M = np.matmul(self.rotation_mueller(-rot_tot*degtorad), M)  
-
         if returnRot:
             return M, (rot_tot)
         else:
             return M
 
     def mueller_VLTI(self, Az, El, fit='Models/GroupedM_fitparams.txt',
-                     rev=False, returnRot=False, rotationFree=False):
+                     rev=False, returnRot=False):
         """
         Function to calculate the mueller matrix at a given telescope position
 
@@ -301,17 +297,17 @@ class CalibVLTI(PolFunctions):
         rev:          Calculate the mueller matrix in reverse (metrology)
                       direction
         returnRot:    Returns the value of field rotation in degree [False]
-        rotationFree: Matrix is given without vield rotation, ie in the 
-                      coordinate system of input light [False]
         """
         fitfile = resource_filename('VLTIpol', fit)
         fitval = np.genfromtxt(fitfile)
         return self.mueller_from_params(Az, El, fitval,
-                                        rev=rev, returnRot=returnRot,
-                                        rotationFree=rotationFree)
+                                        rev=rev, returnRot=returnRot)
 
     def mueller_gravity_rot(self, phiK, phiH, M, fiberrot=15.8, rev=False,
-                         norm=True):
+                            norm=True):
+        """
+        Put the GRAVITY mueller matrix together by adding the rotations
+        """
         MK, MHWP, Mrest = M
         phiK *= degtorad
         phiH *= degtorad
@@ -351,14 +347,21 @@ class CalibVLTI(PolFunctions):
 
     def mueller_GRAVITY(self, kmrot, hwprot, onaxis=False):
         """
-        Mueller matrix from fitted parameters
+        Function to calculate the mueller matrix of GRAVITY given
+        the mirror positions
+
+        Mandatory parameters:
+        kmrot:   K-Mirror position in degree
+        hwprot:  HWP position in degree
+
+        Options:
+        onaxis:  True for on-axis, False for off-axis
         """
         MHWP = np.array([[1, 0, 0, 0],
                          [0, 1, 0, 0],
                          [0, 0, -1, 0],
                          [0, 0, 0, -1]])
         if onaxis:
-            raise ValueError('Ne to recheck the fit!')
             fitMKM_name = resource_filename('polsim',
                                             'Models/GRAVITY_fit_MK_Monaxis.txt')
             fitM_name = resource_filename('polsim',
@@ -377,11 +380,19 @@ class CalibVLTI(PolFunctions):
 
 
 def calib_all(az, el, kmrot, hwprot, pa, returnrot=False,
-              onaxis=False, verbose=False,
-              plot=False, rotationFree=False):
-    vlti = CalibVLTI(plot=plot, verbose=verbose)
+              onaxis=False, plot=False):
+    """
+    Gives full mueller matrix of VLTI & GRAVITY
+    Mandatory parameters:
+    Az:      Telescope azimuth in degree
+    El:      Telescope elevation in degree
+    kmrot:   K-Mirror position in degree
+    hwprot:  HWP position in degree
+    pa:      paralactic angle
+    """
+    vlti = CalibVLTI(plot=plot)
 
-    M_vlti = vlti.mueller_VLTI(az, el, rotationFree=rotationFree)
+    M_vlti = vlti.mueller_VLTI(az, el)
     M_gra = vlti.mueller_GRAVITY(kmrot, hwprot, onaxis=onaxis)
     M = np.dot(M_gra, M_vlti)
     M = M / M[0, 0]
