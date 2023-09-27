@@ -6,6 +6,7 @@ A paper for documentation is in preparation.
 ## Installation
 run:
 ```bash
+cd VLTIpol
 pip install .
 ```
 
