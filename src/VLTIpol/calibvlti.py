@@ -535,105 +535,105 @@ class CalibVLTI(PolFunctions):
             fitval = np.genfromtxt(fitfile)
         return self.polmat_from_params(Az, el, fitval, rev=rev, jones=jones)
 
-#     def mueller_gravity_rot(self, phiK, phiH, M, fiberrot=15.8, rev=False,
-#                             norm=True):
-#         """
-#         Put the GRAVITY mueller matrix together by adding the rotations
-#         """
-#         MK, MHWP, Mrest = M
-#         phiK *= DEGTORAD
-#         phiH *= DEGTORAD
-#         fiberrot *= DEGTORAD
+    def mueller_gravity_rot(self, phiK, phiH, M, fiberrot=15.8, rev=False,
+                            norm=True):
+        """
+        Put the GRAVITY mueller matrix together by adding the rotations
+        """
+        MK, MHWP, Mrest = M
+        phiK *= DEGTORAD
+        phiH *= DEGTORAD
+        fiberrot *= DEGTORAD
 
-#         if rev:
-#             MG = np.matmul(self.rotation_mueller(-fiberrot), MG)
+        if rev:
+            MG = np.matmul(self.rotation_mueller(-fiberrot), MG)
 
-#             MG = np.matmul(self.rotation_mueller(phiH), Mrest)
-#             MG = np.matmul(MHWP, MG)
-#             MG = np.matmul(self.rotation_mueller(-phiH), MG)
+            MG = np.matmul(self.rotation_mueller(phiH), Mrest)
+            MG = np.matmul(MHWP, MG)
+            MG = np.matmul(self.rotation_mueller(-phiH), MG)
 
-#             MG = np.matmul(self.rotation_mueller(phiK), MG)
-#             MG = np.matmul(MK, MG)
-#             MG = np.matmul(self.rotation_mueller(-phiK), MG)
+            MG = np.matmul(self.rotation_mueller(phiK), MG)
+            MG = np.matmul(MK, MG)
+            MG = np.matmul(self.rotation_mueller(-phiK), MG)
 
-#             MG = np.matmul(self.rotation_mueller(-math.pi/2), MG)
+            MG = np.matmul(self.rotation_mueller(-math.pi/2), MG)
 
-#         else:
-#             MG = np.identity(4)
-#             MG = np.matmul(self.rotation_mueller(math.pi/2), MG)
+        else:
+            MG = np.identity(4)
+            MG = np.matmul(self.rotation_mueller(math.pi/2), MG)
 
-#             MG = np.matmul(self.rotation_mueller(-phiK), MG)
-#             MG = np.matmul(MK, MG)
-#             MG = np.matmul(self.rotation_mueller(phiK), MG)
+            MG = np.matmul(self.rotation_mueller(-phiK), MG)
+            MG = np.matmul(MK, MG)
+            MG = np.matmul(self.rotation_mueller(phiK), MG)
 
-#             MG = np.matmul(self.rotation_mueller(-phiH), MG)
-#             MG = np.matmul(MHWP, MG)
-#             MG = np.matmul(self.rotation_mueller(phiH), MG)
+            MG = np.matmul(self.rotation_mueller(-phiH), MG)
+            MG = np.matmul(MHWP, MG)
+            MG = np.matmul(self.rotation_mueller(phiH), MG)
 
-#             MG = np.matmul(Mrest, MG)
-#             MG = np.matmul(self.rotation_mueller(fiberrot), MG)
+            MG = np.matmul(Mrest, MG)
+            MG = np.matmul(self.rotation_mueller(fiberrot), MG)
 
-#         if norm:
-#             MG /= MG[0, 0]
-#         return MG
+        if norm:
+            MG /= MG[0, 0]
+        return MG
 
-#     def mueller_GRAVITY(self, kmrot, hwprot, onaxis=False):
-#         """
-#         Function to calculate the mueller matrix of GRAVITY given
-#         the mirror positions
+    def mueller_GRAVITY(self, kmrot, hwprot, onaxis=False):
+        """
+        Function to calculate the mueller matrix of GRAVITY given
+        the mirror positions
 
-#         Mandatory parameters:
-#         kmrot:   K-Mirror position in degree
-#         hwprot:  HWP position in degree
+        Mandatory parameters:
+        kmrot:   K-Mirror position in degree
+        hwprot:  HWP position in degree
 
-#         Options:
-#         onaxis:  True for on-axis, False for off-axis
-#         """
-#         MHWP = np.array([[1, 0, 0, 0],
-#                          [0, 1, 0, 0],
-#                          [0, 0, -1, 0],
-#                          [0, 0, 0, -1]])
-#         if onaxis:
-#             fitMKM_name = resource_filename('polsim',
-#                                             'Models/GRAVITY_fit_MK_Monaxis.txt')
-#             fitM_name = resource_filename('polsim',
-#                                           'Models/GRAVITY_fit_M_onaxis.txt')
-#         else:
-#             fitMKM_name = resource_filename('polsim',
-#                                             'Models/GRAVITY_fit_MKM.txt')
-#             fitM_name = resource_filename('polsim',
-#                                           'Models/GRAVITY_fit_M.txt')
-#         MKM = np.genfromtxt(fitMKM_name)
-#         Mgra = np.genfromtxt(fitM_name)
+        Options:
+        onaxis:  True for on-axis, False for off-axis
+        """
+        MHWP = np.array([[1, 0, 0, 0],
+                         [0, 1, 0, 0],
+                         [0, 0, -1, 0],
+                         [0, 0, 0, -1]])
+        if onaxis:
+            fitMKM_name = resource_filename('polsim',
+                                            'Models/GRAVITY_fit_MK_Monaxis.txt')
+            fitM_name = resource_filename('polsim',
+                                          'Models/GRAVITY_fit_M_onaxis.txt')
+        else:
+            fitMKM_name = resource_filename('polsim',
+                                            'Models/GRAVITY_fit_MKM.txt')
+            fitM_name = resource_filename('polsim',
+                                          'Models/GRAVITY_fit_M.txt')
+        MKM = np.genfromtxt(fitMKM_name)
+        Mgra = np.genfromtxt(fitM_name)
 
-#         M = [MKM, MHWP, Mgra]
-#         M = self.mueller_gravity_rot(kmrot, hwprot, M)
-#         return M
+        M = [MKM, MHWP, Mgra]
+        M = self.mueller_gravity_rot(kmrot, hwprot, M)
+        return M
 
 
-# def calib_all(az, el, kmrot, hwprot, pa, return_rot=False,
-#               onaxis=False, plot=False):
-#     """
-#     Gives full mueller matrix of VLTI & GRAVITY
-#     Mandatory parameters:
-#     Az:      Telescope azimuth in degree
-#     El:      Telescope elevation in degree
-#     kmrot:   K-Mirror position in degree
-#     hwprot:  HWP position in degree
-#     pa:      paralactic angle
-#     """
-#     vlti = CalibVLTI(plot=plot)
+def calib_all(az, el, kmrot, hwprot, pa, return_rot=False,
+              onaxis=False, plot=False):
+    """
+    Gives full mueller matrix of VLTI & GRAVITY
+    Mandatory parameters:
+    Az:      Telescope azimuth in degree
+    El:      Telescope elevation in degree
+    kmrot:   K-Mirror position in degree
+    hwprot:  HWP position in degree
+    pa:      paralactic angle
+    """
+    vlti = CalibVLTI(plot=plot)
 
-#     M_vlti = vlti.mueller_VLTI(az, el)
-#     M_gra = vlti.mueller_GRAVITY(kmrot, hwprot, onaxis=onaxis)
-#     M = np.dot(M_gra, M_vlti)
-#     M = M / M[0, 0]
+    M_vlti = vlti.polmat_VLTI(az, el)
+    M_gra = vlti.mueller_GRAVITY(kmrot, hwprot, onaxis=onaxis)
+    M = np.dot(M_gra, M_vlti)
+    M = M / M[0, 0]
 
-#     if return_rot:
-#         rotang = pa - 90
-#         R = vlti.rotation_mueller(((-rotang) % 180) / 180*math.pi)
-#         return M, R
-#     else:
-#         return M
+    if return_rot:
+        rotang = pa - 90
+        R = vlti.rotation_mueller(((-rotang) % 180) / 180*math.pi)
+        return M, R
+    else:
+        return M
 
     
