@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import cmath
 
 
 class PolFunctions():
@@ -40,6 +41,37 @@ class PolFunctions():
                 Cos2i == -1
         return polSin, polSout, polPin, polPout, normMirror, incAngle
 
+    def fresnel(self, nc, thetai, smallang=False):
+        """
+        inputs:  real and imag parts of index and incidence angle (radians!)
+        outputs: power reflection coefficients r and phase shifts dp
+
+        Reference Goldstein Chapter 25, Equ. (25-24) & (25-43)
+
+        nc : complex index of refraction
+        phase shifts are defined with the convention of Collett / Goldstein
+        i.e. for perfect conductor ds = pi and dp = 0
+        """
+        thetar = cmath.asin(np.sin(thetai)/nc)
+
+        if smallang:
+            if(np.abs(thetai)>0.001):
+                rs = -np.sin(thetai-thetar) / np.sin(thetai+thetar)
+                rp = np.tan(thetai-thetar) / np.tan(thetai+thetar)
+            else:
+                rs = -(nc-1)/(nc+1)
+                rp = -rs
+        else:
+            rs = -np.sin(thetai-thetar) / np.sin(thetai+thetar)
+            rp = np.tan(thetai-thetar) / np.tan(thetai+thetar)
+
+        reflectS = np.abs(rs)
+        reflectP = np.abs(rp)
+        dphaseS = np.angle(rs)
+        dphaseP = np.angle(rp)
+
+        return reflectS, reflectP, dphaseS, dphaseP
+        
     def rotation_mueller(self, theta):
         """
         Mueller Matrix for roation

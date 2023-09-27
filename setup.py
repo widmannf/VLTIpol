@@ -13,8 +13,6 @@ setup(name='VLTIpol',
       install_requires=[
         'matplotlib',
         'numpy',
-        'math'
-        'pkg_resources',
         'astropy',
     ]
 )
