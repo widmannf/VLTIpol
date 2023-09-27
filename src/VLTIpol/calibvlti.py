@@ -513,7 +513,7 @@ class CalibVLTI(PolFunctions):
         else:
             return M
 
-    def polmat_fitted(self, Az, el, jones=False, rev=False):
+    def polmat_VLTI(self, Az, el, jones=False, rev=False):
         """
         Function to calculate the polarization matrix at a given telescope position
         based on the best fit paramters
