@@ -199,197 +199,340 @@ class CalibVLTI(PolFunctions):
         self.polSout = polSout
         self.polPin = polPin
         self.polPout = polPout
+        self.reflectS = reflectS
+        self.reflectP = reflectP
+        self.dPhase = dPhase
         self.incAngle = incAngle
         self.usedmirror = np.arange(self.mfirst, self.mlast+1)
 
-#     def _getRotation(self, Az, El, returnRot=False):
-#         """
-#         Helper function for fitting
-#         Computes the rotations between the groups of mirrors
-#         for normal light path (starlight)
-#         """
-#         Az *= DEGTORAD
-#         El *= DEGTORAD
+    def polmat(self, Az, El, jones=False, return_rot=False,
+               rev=False):
+        """
+        Computes Mueller matrix for normal propagating
+        Input (s,p) axes defined by the plane of incidence on first mirror
+        For M3 (s,p) axes defined by the plane of incidence on M3
+        Output with (s,p) axes defined by the plane of incidence on
+        last mirror, ideally M18
+        For M18 s is vertical (+w) in lab space
 
-#         # expect rot before M10, M9 and M4
-#         exp_M = [3, 8, 9]
-#         rot_Mgroup = np.zeros(3)
+        Az, El       : telescop position
+        return_rot    : returns als angle of full field rotation
+        jones        : if true returns jones matrix instead of mueller
+        rev          : calculates matrix in opposite direction 
+                       (along metrology light path)
+        """
 
-#         nmirr = len(self.polSin)
-#         rot_tot = 0
-#         for m in range(nmirr-1):
-#             # ref frame rotation to next mirror
-#             # for nominal config the out of the current mirror
-#             Snow = self.polSout[m, :]
-#             Pnow = self.polPout[m, :]
-#             # orientation of next mirror
-#             # for nominal config the in of the next mirror
-#             Snext = self.polSin[m+1, :]
-#             Pnext = self.polPin[m+1, :]
-#             # Rotation between the two ref frames
-#             n = np.cross(Pnow, Snow)
-#             rot = math.atan2(np.dot(np.cross(Snow, Snext), n),
-#                              np.dot(Snow, Snext)) % math.pi
-#             if rot > math.pi/2:
-#                 rot -= math.pi
+        Az *= DEGTORAD
+        El *= DEGTORAD
+        MN = np.identity(4)
+        JN = np.identity(2)
+        rot_tot = 0
+        midx = 0
+        nmirr = len(self.polSin)
+        if jones:
+            self.logger.info('Getting Jones matrix for theoretical mirror properties')
+        else:
+            self.logger.info('Getting Mueller matrix for theoretical mirror properties')
+        if 8 not in self.usedmirror:
+            self.logger.warning('M8 not in path, ignore Azimuth angle')
+        if 3 not in self.usedmirror:
+            self.logger.warning('M3 not in path, ignore Elevation angle')
 
-#             if (rot == 0.0) and (self.usedmirror[m] not in [3, 8]):
-#                 continue
+        if rev:
+            for m in range(nmirr-1, -1, -1):
+                mirrM = self.polmat_mirror([self.reflectS[m], self.reflectP[m],
+                                            self.dPhase[m]], full=True)
+                MN = np.dot(mirrM, MN)
+                mirrJ = self.polmat_mirror([self.reflectS[m], self.reflectP[m],
+                                            self.dPhase[m]], jones=True)
+                JN = np.dot(mirrJ, JN)
 
-#             if self.usedmirror[m] not in exp_M:
-#                 raise ValueError('Rotation for an unexpected mirror (M%i)' %
-#                                  self.usedmirror[m])
-#             if self.usedmirror[m] == 8:
-#                 # Field rotation due to azimuth position
-#                 telrot = -(Az + 18.984*DEGTORAD)
-#                 rot += telrot
-#             elif self.usedmirror[m] == 3:
-#                 # Field rotation due to elevation
-#                 telrot = (math.pi/2 - El)
-#                 rot += telrot
+                if m == 0:
+                    self.logger.debug(f'M{self.usedmirror[m]} reached')
+                else:
+                    Snow = self.polSin[m, :]
+                    Pnow = self.polPin[m, :]
+                    Snext = self.polSout[m-1, :]
+                    n = np.cross(Snow, Pnow)
+                    rot = math.atan2(np.dot(np.cross(Snow, Snext), n),
+                                    np.dot(Snow, Snext)) % math.pi
 
-#             rot = rot % math.pi
-#             if rot > math.pi/2:
-#                 rot -= math.pi
+                    if self.usedmirror[m] == 9:
+                        telrot = -(Az + 18.984*DEGTORAD)
+                        rot += telrot
 
-#             rot_tot += rot
-#             rot_tot = rot_tot % math.pi
-#             rot_Mgroup[exp_M.index(self.usedmirror[m])] = rot
+                    elif self.usedmirror[m] == 4:
+                        telrot = ((math.pi/2) - El)
+                        rot += telrot
 
-#         if returnRot:
-#             rot_tot = (rot_tot/DEGTORAD) % 180
-#             return rot_Mgroup, rot_tot
-#         else:
-#             return rot_Mgroup
+                    rot = rot%math.pi
+                    if rot > math.pi/2: rot -= math.pi
 
-#     def _getRotationRev(self, Az, El, returnRot=False):
-#         """
-#         Helper function for fitting
-#         Computes the rotations between the groups of mirrors
-#         for reverse light path (metrology)
-#         """
-#         Az *= DEGTORAD
-#         El *= DEGTORAD
+                    if rot != 0:
+                        self.logger.debug(f'Rotation between M{self.usedmirror[m]} '
+                                        f'and M{self.usedmirror[m-1]} is {rot/DEGTORAD:.2f}')
 
-#         # expect rot before M9, M8 and M3
-#         exp_M = [10, 9, 4]
-#         rot_Mgroup = np.zeros(3)
+                    if (midx % 2) == 0:  rotfac = -1
+                    else:  rotfac = 1
+                    frameRot = self.rotation_mueller(rot*rotfac)
+                    MN = np.dot(frameRot, MN)
+                    frameRotJ = self.rotation(rot*rotfac)
+                    JN = np.dot(frameRotJ, JN)
 
-#         nmirr = len(self.polSin)
-#         rot_tot = 0
-#         for m in range(nmirr-1, 0, -1):
-#             # ref frame rotation to next mirror
-#             # for reverse config the in of the current mirror
-#             Snow = self.polSin[m, :]
-#             Pnow = self.polPin[m, :]
-#             # orientation of next mirror
-#             # for reverse config the out of the previous mirror
-#             Snext = self.polSout[m-1, :]
-#             Pnext = self.polPout[m-1, :]
-#             # Rotation between the two ref frames
-#             n = np.cross(Snow, Pnow)
-#             rot = math.atan2(np.dot(np.cross(Snow, Snext), n),
-#                              np.dot(Snow, Snext)) % math.pi
-#             if rot > math.pi/2:
-#                 rot -= math.pi
+                    rot_tot += rot
+                    midx += 1
 
-#             if (rot == 0.0) and (self.usedmirror[m] not in [4, 9]):
-#                 continue
+        else:
+            for m in range(nmirr):
+                mirrM = self.polmat_mirror([self.reflectS[m], self.reflectP[m],
+                                            self.dPhase[m]], full=True)
+                MN = np.dot(mirrM, MN)
 
-#             if self.usedmirror[m] not in exp_M:
-#                 raise ValueError('Rotation for an unexpected mirror (M%i)' %
-#                                  self.usedmirror[m])
-#             if self.usedmirror[m] == 9:
-#                 # Field rotation due to azimuth position
-#                 telrot = -(Az + 18.984*DEGTORAD)
-#                 rot += telrot
+                mirrJ = self.polmat_mirror([self.reflectS[m], self.reflectP[m],
+                                            self.dPhase[m]], jones=True)
+                JN = np.dot(mirrJ, JN)
 
-#             elif self.usedmirror[m] == 4:
-#                 # Field rotation due to elevation
-#                 telrot = ((math.pi/2) - El)
-#                 rot += telrot
+                if m == (nmirr-1):
+                    self.logger.debug(f'M{self.usedmirror[m]} reached')
+                else:
+                    Snow = self.polSout[m, :]
+                    Pnow = self.polPout[m, :]
+                    Snext = self.polSin[m+1, :]
+                    n = np.cross(Pnow, Snow)
+                    rot = math.atan2(np.dot(np.cross(Snow, Snext), n),
+                                    np.dot(Snow, Snext)) % math.pi
+                    if rot > math.pi/2: rot -= math.pi
 
-#             rot = rot % math.pi
-#             if rot > math.pi/2:
-#                 rot -= math.pi
+                    if self.usedmirror[m] == 8:
+                        telrot = -(Az + 18.984*DEGTORAD)
+                        rot += telrot
 
-#             rot_tot += rot
-#             rot_tot = rot_tot % math.pi
-#             rot_Mgroup[exp_M.index(self.usedmirror[m])] = rot
+                    elif self.usedmirror[m] == 3:
+                        # Field rotation due to elevation
+                        telrot = (math.pi/2-El)
+                        rot += telrot
 
-#         if returnRot:
-#             rot_tot = (rot_tot/DEGTORAD) % 180
-#             return rot_Mgroup, rot_tot
-#         else:
-#             return rot_Mgroup
+                    rot = rot % math.pi
+                    if rot > math.pi/2: rot -= math.pi
+                    if rot != 0:
+                        self.logger.debug(f'Rotation between M{self.usedmirror[m]} '
+                                        f'and M{self.usedmirror[m+1]} is {rot/DEGTORAD:.2f}')
 
-#     def _grouped_polmat(self, par):
-#         """
-#         Computes the mueller matrix for each mirror group in the VLTIpol
-#         par: diattenuation and phaseshift of each group
-#         """
-#         if len(par) != 8:
-#             raise ValueError('For Mueller matrix parameter has to '
-#                              'contain 8 values: (e & d) x 4.')
-#         (e1, d1, e2, d2, e3, d3, e4, d4) = par
-#         M3 = self.polmat_reflection(e1, d1)
-#         M4to8 = self.polmat_reflection(e2, d2)
-#         M9 = self.polmat_reflection(e3, d3)
-#         M10to18 = self.polmat_reflection(e4, d4)
-#         return M3, M4to8, M9, M10to18
+                    if (midx % 2) == 0: rotfac = -1
+                    else: rotfac = 1
+                    frameRot = self.rotation_mueller(rot*rotfac)
+                    MN = np.dot(frameRot, MN)
+                    frameRotJ = self.rotation(rot*rotfac)
+                    JN = np.dot(frameRotJ, JN)
 
-#     def mueller_from_params(self, Az, El, par, rev=False, norm=True,
-#                             returnRot=False):
-#         """
-#         Computes the mueller matrix from the grouped approach
-#         with the parameters of the froups given as arguments
-#         Can be in both directions with
-#         rev=True for metrology light
-#         """
-#         Ms = np.array(self._grouped_polmat(par))
-#         if rev:
-#             rot_Mgroup, rot_tot = self._getRotationRev(Az, El, returnRot=True)
-#             M = Ms[3]
-#             rotfac = [-1, 1, -1]
-#             for idx in range(3):
-#                 M = np.matmul(self.rotation_mueller(rotfac[idx] * rot_Mgroup[idx]),
-#                               M)
-#                 M = np.matmul(Ms[2-idx], M)
-#         else:
-#             rot_Mgroup, rot_tot = self._getRotation(Az, El, returnRot=True)
-#             M = Ms[0]
-#             rotfac = [-1, 1, -1]
-#             for idx in range(3):
-#                 M = np.matmul(self.rotation_mueller(rotfac[idx] * rot_Mgroup[idx]),
-#                               M)
-#                 M = np.matmul(Ms[idx+1], M)
+                    rot_tot += rot
+                    midx += 1
 
-#         if norm:
-#             M /= M[0, 0]
+        MN /= MN[0, 0]
 
-#         if returnRot:
-#             return M, (rot_tot)
-#         else:
-#             return M
+        if jones:
+            if return_rot:
+                return JN, (rot_tot/DEGTORAD) % 180
+            else:
+                return JN
+        else:
+            if return_rot:
+                return MN, (rot_tot/DEGTORAD) % 180
+            else:
+                return MN
 
-#     def mueller_VLTI(self, Az, El, fit='Models/GroupedM_fitparams.txt',
-#                      rev=False, returnRot=False):
-#         """
-#         Function to calculate the mueller matrix at a given telescope position
 
-#         Mandatory parameters:
-#         Az:  Telescope azimuth in degree
-#         El:  Telescope elevation in degree
+    def _get_rotation(self, Az, El, rev=False, return_rot=False):
+        """
+        Helper function for fitting
+        Computes the rotations between the groups of mirrors
+        for normal light path (starlight)
+        """
+        Az *= DEGTORAD
+        El *= DEGTORAD
+        exp_M = [3, 8, 9]
+        rot_Mgroup = np.zeros(3)
+        nmirr = len(self.polSin)
+        rot_tot = 0
 
-#         Options:
-#         rev:          Calculate the mueller matrix in reverse (metrology)
-#                       direction
-#         returnRot:    Returns the value of field rotation in degree [False]
-#         """
-#         fitfile = resource_filename('VLTIpol', fit)
-#         fitval = np.genfromtxt(fitfile)
-#         return self.mueller_from_params(Az, El, fitval,
-#                                         rev=rev, returnRot=returnRot)
+        if rev:
+            # expect rot before M9, M8 and M3
+            exp_M = [10, 9, 4]
+            for m in range(nmirr-1, 0, -1):
+                Snow = self.polSin[m, :]
+                Pnow = self.polPin[m, :]
+                Snext = self.polSout[m-1, :]
+                Pnext = self.polPout[m-1, :]
+                n = np.cross(Snow, Pnow)
+                rot = math.atan2(np.dot(np.cross(Snow, Snext), n),
+                                np.dot(Snow, Snext)) % math.pi
+                if rot > math.pi/2: rot -= math.pi
+
+                if (rot == 0.0) and (self.usedmirror[m] not in [4, 9]):
+                    continue
+
+                if self.usedmirror[m] not in exp_M:
+                    raise ValueError('Rotation for an unexpected mirror (M%i)' %
+                                    self.usedmirror[m])
+                if self.usedmirror[m] == 9:
+                    telrot = -(Az + 18.984*DEGTORAD)
+                    rot += telrot
+
+                elif self.usedmirror[m] == 4:
+                    telrot = ((math.pi/2) - El)
+                    rot += telrot
+
+                rot = rot % math.pi
+                if rot > math.pi/2: rot -= math.pi
+
+                rot_tot += rot
+                rot_tot = rot_tot % math.pi
+                rot_Mgroup[exp_M.index(self.usedmirror[m])] = rot
+
+        else:
+            # expect rot before M10, M9 and M4
+            exp_M = [3, 8, 9]
+            for m in range(nmirr-1):
+                Snow = self.polSout[m, :]
+                Pnow = self.polPout[m, :]
+                Snext = self.polSin[m+1, :]
+                Pnext = self.polPin[m+1, :]
+                n = np.cross(Pnow, Snow)
+                rot = math.atan2(np.dot(np.cross(Snow, Snext), n),
+                                np.dot(Snow, Snext)) % math.pi
+                if rot > math.pi/2: rot -= math.pi
+
+                if (rot == 0.0) and (self.usedmirror[m] not in [3, 8]):
+                    continue
+
+                if self.usedmirror[m] not in exp_M:
+                    raise ValueError('Rotation for an unexpected mirror (M%i)' %
+                                    self.usedmirror[m])
+                if self.usedmirror[m] == 8:
+                    # Field rotation due to azimuth position
+                    telrot = -(Az + 18.984*DEGTORAD)
+                    rot += telrot
+                elif self.usedmirror[m] == 3:
+                    # Field rotation due to elevation
+                    telrot = (math.pi/2 - El)
+                    rot += telrot
+
+                rot = rot % math.pi
+                if rot > math.pi/2: rot -= math.pi
+
+                rot_tot += rot
+                rot_tot = rot_tot % math.pi
+                rot_Mgroup[exp_M.index(self.usedmirror[m])] = rot
+
+        if return_rot:
+            return rot_Mgroup, (rot_tot/DEGTORAD) % 180
+        else:
+            return rot_Mgroup
+
+
+    def _grouped_polmat_params(self, par, jones=False, full=False):
+        """
+        Computes the mueller matrix for each mirror group in the VLTIpol
+        based on an input list of parameters
+        
+        par    : diattenuation and phaseshift of each group
+        jones  : if true returns jones matrix instead of mueller
+        full   : if true takes rs & rp instead of diattenuation
+        """
+        if jones:
+            if len(par) != 12:
+                raise ValueError('For Jones matrix parameter has to '
+                                 'contain 12 values: (rs, rp, & d) x 4. '
+                                 'If e and d are given use full=True '
+                                 'and jones=False')
+            (rs1, rp1, d1, rs2, rp2, d2, rs3, rp3, d3, rs4, rp4, d4) = par
+            J3 = self.polmat_mirror([rs1, rp1, d1], jones=True)
+            J4to8 = self.polmat_mirror([rs2, rp2, d2], jones=True)
+            J9 = self.polmat_mirror([rs3, rp3, d3], jones=True)
+            J10to18 = self.polmat_mirror([rs4, rp4, d4], jones=True)
+            return J3, J4to8, J9, J10to18
+        else:
+            if full:
+                if len(par) != 12:
+                    raise ValueError('For full Mueller matrix parameter has to'
+                                     ' contain 12 values: (rs, rp, & d) x 4. '
+                                     'If e and d are given use full=True')
+                (rs1, rp1, d1, rs2, rp2, d2, rs3, rp3, d3, rs4, rp4, d4) = par
+                M3 = self.polmat_mirror([rs1, rp1, d1], full=True)
+                M4to8 = self.polmat_mirror([rs2, rp2, d2], full=True)
+                M9 = self.polmat_mirror([rs3, rp3, d3], full=True)
+                M10to18 = self.polmat_mirror([rs4, rp4, d4], full=True)
+            else:
+                if len(par) != 8:
+                    raise ValueError('For Mueller matrix parameter has to '
+                                     'contain 8 values: (e & d) x 4. If '
+                                     'rs, rp, and d are given use full=True')
+                (e1, d1, e2, d2, e3, d3, e4, d4) = par
+                M3 = self.polmat_mirror([e1, d1])
+                M4to8 = self.polmat_mirror([e2, d2])
+                M9 = self.polmat_mirror([e3, d3])
+                M10to18 = self.polmat_mirror([e4, d4])
+            return M3, M4to8, M9, M10to18
+
+    def polmat_from_params(self, Az, El, par, rev=False, jones=False,
+                           full=False, return_rot=False):
+        """
+        Computes the polarization matrix from the grouped approach
+        with the parameters of the froups given as arguments
+
+        Az, El : Telescope position
+        par    : diattenuation and phaseshift of each group
+        rev    : if true calculates in reverse direction (metrology)
+        jones  : if true returns jones matrix instead of mueller
+        full   : if true takes rs & rp instead of diattenuation
+        """
+        Ms = self._grouped_polmat_params(par, jones=jones, full=full)
+        angs, rot_tot = self._get_rotation(Az, El, rev=rev, return_rot=True)
+        rotfac = [-1, 1, -1]
+        angs = [ang*rotfac[idx] for idx, ang in enumerate(angs)]
+
+        if jones:
+            Rs = [self.rotation(ang) for ang in angs]
+        else:
+            Rs = [self.rotation_mueller(ang) for ang in angs]
+        if rev:
+            M = Ms[3]
+            for idx in range(3):
+                M = np.matmul(Rs[idx], M)
+                M = np.matmul(Ms[2-idx], M)
+        else:
+            M = Ms[0]
+            for idx in range(3):
+                M = np.matmul(Rs[idx], M)
+                M = np.matmul(Ms[idx+1], M)
+
+        if not jones: M /= M[0, 0]
+
+        if return_rot:
+            return M, rot_tot
+        else:
+            return M
+
+    def polmat_fitted(self, Az, el, jones=False, rev=False):
+        """
+        Function to calculate the polarization matrix at a given telescope position
+        based on the best fit paramters
+
+        Mandatory parameters:
+        Az:  Telescope azimuth in degree
+        El:  Telescope elevation in degree
+
+        Options:
+        rev:          Calculate the mueller matrix in reverse (metrology)
+                      direction
+        jones:        if true returns jones matrix instead of mueller
+        """
+        if jones: 
+            raise ValueError('Jones matrix not implemented for fitted parameters')
+        else:
+            fitfile = resource_filename('VLTIpol', 'Models/GroupedM_fitparams.txt')
+            fitval = np.genfromtxt(fitfile)
+        return self.polmat_from_params(Az, el, fitval, rev=rev, jones=jones)
 
 #     def mueller_gravity_rot(self, phiK, phiH, M, fiberrot=15.8, rev=False,
 #                             norm=True):
@@ -467,7 +610,7 @@ class CalibVLTI(PolFunctions):
 #         return M
 
 
-# def calib_all(az, el, kmrot, hwprot, pa, returnrot=False,
+# def calib_all(az, el, kmrot, hwprot, pa, return_rot=False,
 #               onaxis=False, plot=False):
 #     """
 #     Gives full mueller matrix of VLTI & GRAVITY
@@ -485,9 +628,9 @@ class CalibVLTI(PolFunctions):
 #     M = np.dot(M_gra, M_vlti)
 #     M = M / M[0, 0]
 
-#     if returnrot:
+#     if return_rot:
 #         rotang = pa - 90
-#         R = vlti.rotationMatMueller(((-rotang) % 180) / 180*math.pi)
+#         R = vlti.rotation_mueller(((-rotang) % 180) / 180*math.pi)
 #         return M, R
 #     else:
 #         return M

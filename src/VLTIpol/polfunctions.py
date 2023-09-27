@@ -86,18 +86,69 @@ class PolFunctions():
         R[1:-1, 1:-1] = RR
         R[np.where(np.abs(R) < 1e-14)] = 0
         return R
-    
-    def polmat_reflection(self, e, d):
-        M = np.zeros((4, 4))
-        M[0, 0] = 1
-        M[1, 1] = 1
-        M[0, 1] = e
-        M[1, 0] = e
 
-        M[2, 2] = np.sqrt(1-e**2)*np.cos(d)
-        M[3, 3] = np.sqrt(1-e**2)*np.cos(d)
-        M[2, 3] = np.sqrt(1-e**2)*np.sin(d)
-        M[3, 2] = -np.sqrt(1-e**2)*np.sin(d)
+    def rotation(self, theta):
+        """
+        2-D rotation matrix 
+        transforms from "old" components to "new" components
+        when "new" frame is rotated by theta from "old" frame
+        angle orientation: y is at +pi/2 from x
+        """
+        if np.abs(theta) > 5*np.pi:
+            raise ValueError('Check the angle, seems to be to big')
+        R = np.array([[np.cos(theta), np.sin(theta)],
+                      [-np.sin(theta), np.cos(theta)]])
+        return R
 
-        M /= M[0, 0]
-        return(M)
+    def polmat_mirror(self, par, full=False, norm=True, jones=False):
+        if jones:
+            if len(par) != 3:
+                raise ValueError('For full Mueller matrix parameter has to '
+                                 'contain three values: rs, rp, & d. '
+                                 'If e and d ar given use full=True '
+                                 'and jones=False')
+            rs, rp, d = par
+            J = np.array([[rs*np.exp(1j*d), 0],
+                          [0, rp]])
+            return J
+
+        else:
+            if full:
+                if len(par) != 3:
+                    raise ValueError('For full Mueller matrix parameter has to'
+                                     ' contain three values: rs, rp, & d. '
+                                     'If e and d ar given use full=True')
+                rs, rp, d = par
+
+                M = np.zeros((4, 4))
+                M[0, 0] = rs**2 + rp**2
+                M[1, 1] = rs**2 + rp**2
+                M[1, 0] = rs**2 - rp**2
+                M[0, 1] = rs**2 - rp**2
+                M[2, 2] = 2*rs*rp*np.cos(d)
+                M[3, 3] = 2*rs*rp*np.cos(d)
+                M[2, 3] = 2*rs*rp*np.sin(d)
+                M[3, 2] = -2*rs*rp*np.sin(d)
+                M *= 0.5
+                if norm:
+                    M /= M[0, 0]
+
+            else:
+                if len(par) != 2:
+                    raise ValueError('For Mueller matrix parameter has to '
+                                     'contain two values: e & d. If '
+                                     'rs, rp, and d are given use full=True')
+                e, d = par
+                M = np.zeros((4, 4))
+                M[0, 0] = 1
+                M[1, 1] = 1
+                M[0, 1] = e
+                M[1, 0] = e
+
+                M[2, 2] = np.sqrt(1-e**2)*np.cos(d)
+                M[3, 3] = np.sqrt(1-e**2)*np.cos(d)
+                M[2, 3] = np.sqrt(1-e**2)*np.sin(d)
+                M[3, 2] = -np.sqrt(1-e**2)*np.sin(d)
+
+                M /= M[0, 0]
+            return M
