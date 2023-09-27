@@ -2,6 +2,13 @@
 
 Small python package to get the instrumental polarization of the VLTI. A paper for documentation is in preparation.
 
+## Installation
+run:
+```bash
+pip install .
+```
+
+## Usage
 Mini example to get the polarization for a typical GRAVITY file:
 
 ```python

@@ -528,7 +528,8 @@ class CalibVLTI(PolFunctions):
         jones:        if true returns jones matrix instead of mueller
         """
         if jones: 
-            raise ValueError('Jones matrix not implemented for fitted parameters')
+            fitfile = resource_filename('VLTIpol', 'Models/GroupedJ_fitparams.txt')
+            fitval = np.genfromtxt(fitfile)
         else:
             fitfile = resource_filename('VLTIpol', 'Models/GroupedM_fitparams.txt')
             fitval = np.genfromtxt(fitfile)
