@@ -41,7 +41,7 @@ print(J)
  [-0.03124834+0.18939207j -0.65362468+0.20427131j]]
 ```
 
-## VLTI & GRAVITY
+### VLTI & GRAVITY
 Ultimatively the package is created to correct the instrumental effect in GRAVITY observations.
 This can be done as follows
 
