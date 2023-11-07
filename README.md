@@ -59,20 +59,17 @@ elevation = header['ESO ISS ALT']
 paralactic_angle = (header['ESO ISS PARANG START'] + 
                     header['ESO ISS PARANG END'])/2
 # HWP and K-Mirror angle have to be calculated from encoder positions:
-km_angle = np.mean(([(header[f'ESO INS DROT{i} START'] 
-                      + header[f'ESO INS DROT{i} END'])/2 
-                     for i in range(1,5)]))
+km_angle = np.mean([(header[f'ESO INS DROT{i} START'] 
+                     + header[f'ESO INS DROT{i} END'])/2
+                     for i in range(1,5)])
                
-hwp_angle = np.mean(([(header[f'ESO INS DROT{i+4} START'] 
-                       + header[f'ESO INS DROT{i+4} END'])/2 
-                       - header[f'ESO INS HWPOFFSET{i}'])
-                       for i in range(1,5)])
+hwp_angle = np.mean([(header[f'ESO INS DROT{i+4} START'] 
+                      + header[f'ESO INS DROT{i+4} END'])/2
+                      for i in range(1,5)])
 
 # VLTI & GRAVITY mueller matrix:
 M = vp.calib_all(azimuth, elevation,
                  km_angle, hwp_angle, paralactic_angle)
-iM = np.linalg.inv(M)
-        
-# Application of the full mueller matrix:
-stokes_out = np.dot(iM, stokes_measured)
+
 ```
+This gives you the full Mueller matrix of the VLTI & GRAVITY. The way how to apply it will then depend on your way on how to process the observing data.
