@@ -41,6 +41,17 @@ print(J)
  [-0.03124834+0.18939207j -0.65362468+0.20427131j]]
 ```
 
+#### Individual telescopes
+
+For the Jones matrices each telescope is available with its individual properties.
+To get the matrix for a single telescope one can use:
+
+```python
+J = v.polmat_VLTI(az, el, jones=True, telescope=1)
+```
+ With telescope ranging for 1 - 4 for UT 1 - 4.
+ If telescope is not given (or None) or for Mueller matrix, the averaded properties are given.
+
 ### VLTI & GRAVITY
 Ultimatively the package is created to correct the instrumental effect in GRAVITY observations.
 This can be done as follows

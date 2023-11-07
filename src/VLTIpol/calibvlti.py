@@ -513,7 +513,7 @@ class CalibVLTI(PolFunctions):
         else:
             return M
 
-    def polmat_VLTI(self, Az, el, jones=False, rev=False):
+    def polmat_VLTI(self, Az, el, jones=False, rev=False, telescope=None):
         """
         Function to calculate the polarization matrix at a given telescope position
         based on the best fit paramters
@@ -528,9 +528,17 @@ class CalibVLTI(PolFunctions):
         jones:        if true returns jones matrix instead of mueller
         """
         if jones: 
-            fitfile = resource_filename('VLTIpol', 'Models/GroupedJ_fitparams.txt')
-            fitval = np.genfromtxt(fitfile)
+            if telescope is not None:
+                if telescope not in [1, 2, 3, 4]:
+                    raise ValueError('Telescope has to be None for a combined fit, or 1, 2, 3, or 4 for a single UT')
+                fitfile = resource_filename('VLTIpol', 'Models/GroupedJ_fitparams_ind.txt')
+                fitval = np.genfromtxt(fitfile)[telescope-1]
+            else:
+                fitfile = resource_filename('VLTIpol', 'Models/GroupedJ_fitparams.txt')
+                fitval = np.genfromtxt(fitfile)
         else:
+            if telescope is not None:
+                raise ValueError('Individual telescopes only available for Jones matrix')
             fitfile = resource_filename('VLTIpol', 'Models/GroupedM_fitparams.txt')
             fitval = np.genfromtxt(fitfile)
         return self.polmat_from_params(Az, el, fitval, rev=rev, jones=jones)
