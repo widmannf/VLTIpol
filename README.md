@@ -1,7 +1,7 @@
 # VLTIpol
 
 Small python package to get the instrumental polarization of the VLTI.
-A paper for documentation is in preparation.
+For details on the model and how the values are achieved see the paper [Polarization analysis of the VLTI and GRAVITY](https://arxiv.org/abs/2311.03472 "Polarization analysis of the VLTI and GRAVITY")
 
 ## Installation
 run:
@@ -83,4 +83,5 @@ M = vp.calib_all(azimuth, elevation,
                  km_angle, hwp_angle, paralactic_angle)
 
 ```
-This gives you the full Mueller matrix of the VLTI & GRAVITY. The way how to apply it will then depend on your way on how to process the observing data.
+This gives you the full Mueller matrix of the VLTI & GRAVITY.
+The way how to apply it will then depend on your way on how to process the observing data. Examples can also be found in the [connected paper](https://arxiv.org/abs/2311.03472 "Polarization analysis of the VLTI and GRAVITY")
